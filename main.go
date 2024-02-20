@@ -10,9 +10,10 @@ import (
 )
 
 type cel struct {
-	bomba  bool
-	aberto bool
-	quanto int
+	bomba    bool
+	aberto   bool
+	bandeira bool
+	quanto   int
 }
 
 type campo struct {
@@ -22,33 +23,72 @@ type campo struct {
 	cursory      int
 }
 
-func (c *campo) Randomizar(quantidade, cx, cy int) {
+func (c *campo) Randomizar(quantidade int) {
 	for i := range len(c.bombas) {
 		for j := range len(c.bombas[0]) {
 			c.bombas[i][j].bomba = false
+			c.bombas[i][j].quanto = 0
+			c.bombas[i][j].aberto = false
 		}
 	}
 
 	contador := 0
 	for adicionado := 0; adicionado < quantidade; {
-		i := (contador / 5) % 5
-		j := contador % 5
+		i := (contador / len(c.bombas)) % len(c.bombas[0])
+		j := contador % len(c.bombas[0])
 		chance := rand.Intn(5)
-		if chance == 0 && (cx != i || cy != j) {
+		if chance == 0 && (c.cursorx != i || c.cursory != j) {
 			c.bombas[i][j].bomba = true
 			adicionado += 1
 		}
 		contador += 1
 	}
+
+	for i := range len(c.bombas) {
+		for j := range len(c.bombas[0]) {
+			for a := range 3 {
+				for b := range 3 {
+					if b != 1 || a != 1 {
+						ia := i + a - 1
+						jb := j + b - 1
+						if ia >= 0 && ia < len(c.bombas) && jb >= 0 && jb < len(c.bombas[0]) {
+							if c.bombas[ia][jb].bomba {
+								c.bombas[i][j].quanto += 1
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	c.inicializado = true
+}
+
+func (c *campo) Abrir(cx, cy int) {
+	c.bombas[cx][cy].aberto = true
+	if c.bombas[cx][cy].quanto == 0 {
+		for i := range 3 {
+			for j := range 3 {
+				if i != 1 || j != 1 {
+					xi := cx + i - 1
+					yj := cy + j - 1
+					if xi >= 0 && xi < len(c.bombas) && yj >= 0 && yj < len(c.bombas[0]) &&
+						!c.bombas[xi][yj].aberto && !c.bombas[xi][yj].bomba {
+						c.Abrir(xi, yj)
+					}
+				}
+			}
+		}
+	}
 }
 
 func initialModel() campo {
 	campo := campo{
-		bombas: make([][]cel, 5),
+		bombas: make([][]cel, 10),
 	}
 	for i := range campo.bombas {
-		campo.bombas[i] = make([]cel, 5)
+		campo.bombas[i] = make([]cel, 10)
 	}
 	campo.inicializado = false
 	return campo
@@ -86,11 +126,17 @@ func (m campo) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursory++
 			}
 
-		case "r":
-			m.Randomizar(5, m.cursorx, m.cursory)
+		case "f":
+			m.bombas[m.cursorx][m.cursory].bandeira = !m.bombas[m.cursorx][m.cursory].bandeira
 
 		case "enter", " ":
-			m.bombas[m.cursorx][m.cursory].aberto = !m.bombas[m.cursorx][m.cursory].aberto
+			if !m.inicializado {
+				m.Randomizar(10)
+			}
+			m.Abrir(m.cursorx, m.cursory)
+
+		case "r":
+			m.Randomizar(10)
 		}
 	}
 
@@ -109,7 +155,9 @@ func (m campo) View() string {
 			} else {
 				cursor += " "
 			}
-			if m.bombas[i][j].aberto {
+			if m.bombas[i][j].bandeira {
+				cursor += "F"
+			} else if m.bombas[i][j].aberto {
 				if m.bombas[i][j].bomba {
 					cursor += "X"
 				} else {
