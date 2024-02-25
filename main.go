@@ -7,6 +7,16 @@ import (
 	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	estiloBorda    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+	estiloTitulo   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
+	estiloBomba    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#FF4444"))
+	estiloFechado  = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
+	estiloBandeira = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	estiloCursor   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 )
 
 type cel struct {
@@ -23,6 +33,7 @@ type campo struct {
 	cursory      int
 }
 
+// melhorar a funcao Randomizar() e a Abrir() (talvez juntar elas)
 func (c *campo) Randomizar(quantidade int) {
 	for i := range len(c.bombas) {
 		for j := range len(c.bombas[0]) {
@@ -65,6 +76,7 @@ func (c *campo) Randomizar(quantidade int) {
 	c.inicializado = true
 }
 
+// melhorar a funcao Randomizar() e a Abrir() (talvez juntar elas)
 func (c *campo) Abrir(cx, cy int) {
 	c.bombas[cx][cy].aberto = true
 	if c.bombas[cx][cy].quanto == 0 {
@@ -82,6 +94,8 @@ func (c *campo) Abrir(cx, cy int) {
 		}
 	}
 }
+
+// adicionar detecção de bomba ou completado
 
 func initialModel() campo {
 	campo := campo{
@@ -144,39 +158,54 @@ func (m campo) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m campo) View() string {
-	s := "Campo Minado\n"
+	s := estiloTitulo.Render("Campo Minado")
+	s += "\n"
+
+	campo := ""
 
 	for i := range m.bombas {
 		for j := range m.bombas[0] {
-			cursor := ""
+			celula := ""
 			cnesse := m.cursorx == i && m.cursory == j
 			if cnesse {
-				cursor += "["
+				celula += estiloCursor.Render("[")
 			} else {
-				cursor += " "
+				celula += " "
 			}
 			if m.bombas[i][j].bandeira {
-				cursor += "F"
+				celula += estiloBandeira.Render("█")
 			} else if m.bombas[i][j].aberto {
 				if m.bombas[i][j].bomba {
-					cursor += "X"
+					celula += estiloBomba.Render("O")
 				} else {
-					cursor += strconv.FormatInt(int64(m.bombas[i][j].quanto), 10)
+					// tem que melhorar isso aqui vvv
+					if m.bombas[i][j].quanto == 0 {
+						numero := strconv.FormatInt(int64(m.bombas[i][j].quanto), 10)
+						celula += estiloFechado.Render(numero)
+					} else {
+						celula += strconv.FormatInt(int64(m.bombas[i][j].quanto), 10)
+					}
 				}
 			} else {
-				cursor += "#"
+				celula += estiloFechado.Render("#")
 			}
 			if cnesse {
-				cursor += "]"
+				celula += estiloCursor.Render("]")
 			} else {
-				cursor += " "
+				celula += " "
 			}
-			s += cursor
+			campo += celula
 		}
-		s += "\n"
+		campo += "\n"
 	}
 
-	s += "Pressione q para sair.\n"
+	s += campo
+	s += "Pressione q para sair."
+
+	// adicionar mais controles
+
+	s = estiloBorda.Render(s)
+	s += "\n"
 	return s
 }
 
