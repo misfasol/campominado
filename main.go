@@ -200,7 +200,7 @@ func (m campo) View() string {
 	}
 
 	s += campo
-	s += "Pressione q para sair."
+	s += "Pressione `q` para sair."
 
 	// adicionar mais controles
 
