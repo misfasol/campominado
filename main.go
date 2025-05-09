@@ -14,9 +14,10 @@ var (
 	estiloBorda    = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 	estiloTitulo   = lipgloss.NewStyle().Border(lipgloss.RoundedBorder())
 	estiloBomba    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Background(lipgloss.Color("#FF4444"))
-	estiloFechado  = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
+	estiloFechado  = lipgloss.NewStyle().Foreground(lipgloss.Color("#888888"))
 	estiloBandeira = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
 	estiloCursor   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	estiloNaoSei   = lipgloss.NewStyle().Foreground(lipgloss.Color("#444444"))
 )
 
 type cel struct {
@@ -43,16 +44,13 @@ func (c *campo) Randomizar(quantidade int) {
 		}
 	}
 
-	contador := 0
 	for adicionado := 0; adicionado < quantidade; {
-		i := (contador / len(c.bombas)) % len(c.bombas[0])
-		j := contador % len(c.bombas[0])
-		chance := rand.Intn(5)
-		if chance == 0 && (c.cursorx != i || c.cursory != j) {
+		i := rand.Intn(len(c.bombas))
+		j := rand.Intn(len(c.bombas))
+		if c.cursorx != i || c.cursory != j {
 			c.bombas[i][j].bomba = true
 			adicionado += 1
 		}
-		contador += 1
 	}
 
 	for i := range len(c.bombas) {
@@ -77,7 +75,10 @@ func (c *campo) Randomizar(quantidade int) {
 }
 
 // melhorar a funcao Randomizar() e a Abrir() (talvez juntar elas)
-func (c *campo) Abrir(cx, cy int) {
+func (c *campo) Abrir(cx, cy int) bool {
+	if c.bombas[cx][cy].bomba {
+		return false
+	}
 	c.bombas[cx][cy].aberto = true
 	if c.bombas[cx][cy].quanto == 0 {
 		for i := range 3 {
@@ -87,12 +88,13 @@ func (c *campo) Abrir(cx, cy int) {
 					yj := cy + j - 1
 					if xi >= 0 && xi < len(c.bombas) && yj >= 0 && yj < len(c.bombas[0]) &&
 						!c.bombas[xi][yj].aberto && !c.bombas[xi][yj].bomba {
-						c.Abrir(xi, yj)
+						_ = c.Abrir(xi, yj)
 					}
 				}
 			}
 		}
 	}
+	return true
 }
 
 // adicionar detecção de bomba ou completado
@@ -145,12 +147,15 @@ func (m campo) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "enter", " ":
 			if !m.inicializado {
-				m.Randomizar(10)
+				m.Randomizar(20)
 			}
-			m.Abrir(m.cursorx, m.cursory)
+			if !m.Abrir(m.cursorx, m.cursory) {
+				fmt.Println("abriu bomba")
+				return m, tea.Quit
+			}
 
 		case "r":
-			m.Randomizar(10)
+			m.Randomizar(20)
 		}
 	}
 
@@ -181,7 +186,8 @@ func (m campo) View() string {
 					// tem que melhorar isso aqui vvv
 					if m.bombas[i][j].quanto == 0 {
 						numero := strconv.FormatInt(int64(m.bombas[i][j].quanto), 10)
-						celula += estiloFechado.Render(numero)
+						// celula += estiloFechado.Render(numero)
+						celula += estiloNaoSei.Render(numero)
 					} else {
 						celula += strconv.FormatInt(int64(m.bombas[i][j].quanto), 10)
 					}
